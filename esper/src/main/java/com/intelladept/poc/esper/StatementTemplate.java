@@ -1,6 +1,6 @@
 package com.intelladept.poc.esper;
 
-import com.espertech.esper.client.UpdateListener;
+import com.espertech.esper.client.StatementAwareUpdateListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,13 +14,13 @@ public class StatementTemplate {
 
     private String statement;
 
-    private UpdateListener updateListener;
+    private StatementAwareUpdateListener updateListener;
 
     public StatementTemplate(String statement) {
         this.statement = statement;
     }
 
-    public StatementTemplate(String statement, UpdateListener updateListener) {
+    public StatementTemplate(String statement, StatementAwareUpdateListener updateListener) {
         this.statement = statement;
         this.updateListener = updateListener;
     }
@@ -33,11 +33,11 @@ public class StatementTemplate {
         this.statement = statement;
     }
 
-    public UpdateListener getUpdateListener() {
+    public StatementAwareUpdateListener getUpdateListener() {
         return updateListener;
     }
 
-    public void setUpdateListener(UpdateListener updateListener) {
+    public void setUpdateListener(StatementAwareUpdateListener updateListener) {
         this.updateListener = updateListener;
     }
 

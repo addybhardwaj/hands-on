@@ -1,6 +1,5 @@
 package com.intelladept.poc.esper;
 
-import com.espertech.esper.client.UpdateListener;
 import com.intelladept.poc.esper.events.ReceivedEvent;
 import com.intelladept.poc.esper.events.SentEvent;
 import com.intelladept.poc.utils.MemoryUtils;
@@ -40,12 +39,12 @@ public class EventTrackingTest {
 
         Map<String, Object> variables = new HashMap<String, Object>();
         expiredListener = new CountingStatementListener("expiredListener");
-        UpdateListener matchedListener  = new CountingStatementListener("matchedListener");;
+        CountingStatementListener matchedListener  = new CountingStatementListener("matchedListener");;
         variables.put("var_win", delayInSecs);
         esperTemplate.setVariables(variables);
         esperTemplate.addStatementTemplate(statement, expiredListener);
-        esperTemplate.addStatementTemplate("select * from com.espertech.esper.client.metric.EngineMetric ", new CountingStatementListener("metrics"));
-        esperTemplate.addStatementTemplate("select * from com.espertech.esper.client.metric.StatementMetric ", new CountingStatementListener("metrics-stmt"));
+//        esperTemplate.addStatementTemplate("select * from com.espertech.esper.client.metric.EngineMetric ", new CountingStatementListener("metrics"));
+//        esperTemplate.addStatementTemplate("select * from com.espertech.esper.client.metric.StatementMetric ", new CountingStatementListener("metrics-stmt"));
 
         esperTemplate.startEngine();
     }
@@ -93,7 +92,7 @@ public class EventTrackingTest {
             }
         }
         long end = System.currentTimeMillis();
-        LOGGER.info("Time taken {} secs",  (end-start)/1000);
+        LOGGER.info("Time taken {} secs", (end - start) / 1000);
     }
 
     @Test
@@ -123,22 +122,28 @@ public class EventTrackingTest {
 
     @Test
     public void testPatternStatementWithVolume() throws Exception {
-        delayInSecs = 30;
+        delayInSecs = 45;
         before(PATTERN_STATEMENT);
 
         String uuid = UUID.randomUUID().toString();
         long start = System.currentTimeMillis();
-        int max = 10000000;
+        int max = 300000;
         for (int i=0; i < max; i++) {
             esperTemplate.sendEvent(new SentEvent(uuid + "event " + i, 100));
             esperTemplate.sendEvent(new ReceivedEvent(uuid + "event " + i, 100));
             int batch = 10000;
             if (i% batch == 0) {
-                if (i%(batch*20)==0) TimeUnit.SECONDS.sleep(5);
                 LOGGER.info(" {} : Count {}", MemoryUtils.stats(), i);
             }
         }
         long end = System.currentTimeMillis();
         LOGGER.info("Time taken {} secs",  (end-start)/1000);
+
+        while (true) {
+            TimeUnit.SECONDS.sleep(5);
+            Runtime.getRuntime().gc();
+            LOGGER.info(" {} ", MemoryUtils.stats());
+        }
+
     }
 }

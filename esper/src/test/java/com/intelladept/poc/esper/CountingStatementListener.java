@@ -1,7 +1,6 @@
 package com.intelladept.poc.esper;
 
-import com.espertech.esper.client.EventBean;
-import com.espertech.esper.client.UpdateListener;
+import com.espertech.esper.client.*;
 import org.apache.commons.lang.builder.ToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +10,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Aditya Bhardwaj
  */
-public class CountingStatementListener implements UpdateListener {
+public class CountingStatementListener implements StatementAwareUpdateListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CountingStatementListener.class);
 
@@ -24,14 +23,15 @@ public class CountingStatementListener implements UpdateListener {
     }
 
     @Override
-    public void update(EventBean[] newEvents, EventBean[] oldEvents) {
+    public void update(EventBean[] newEvents, EventBean[] oldEvents, EPStatement statement, EPServiceProvider epServiceProvider) {
 
-        logEvent(newEvents, "New event");
-        logEvent(oldEvents, "Old event");
+        logEvent(newEvents, "New event", statement);
+        logEvent(oldEvents, "Old event", statement);
     }
 
-    private void logEvent(EventBean[] newEvents, final String desc) {
+    private void logEvent(EventBean[] newEvents, final String desc, EPStatement statement) {
         if (newEvents != null) {
+            LOGGER.info("{} >> Statement {}", name, statement.getText());
             for(EventBean eventBean : newEvents) {
                 count ++;
                 LOGGER.info("{} >> " + desc + " {}", name, eventBean);
@@ -43,4 +43,5 @@ public class CountingStatementListener implements UpdateListener {
     public int getCount() {
         return count;
     }
+
 }

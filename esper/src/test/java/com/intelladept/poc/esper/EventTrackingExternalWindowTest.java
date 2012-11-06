@@ -1,10 +1,11 @@
 package com.intelladept.poc.esper;
 
-import com.espertech.esper.client.UpdateListener;
+import com.espertech.esper.client.StatementAwareUpdateListener;
 import com.intelladept.poc.esper.events.ReceivedEvent;
 import com.intelladept.poc.esper.events.SentEvent;
 import com.intelladept.poc.utils.MemoryUtils;
 import junit.framework.Assert;
+import org.junit.After;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,10 +24,23 @@ import java.util.concurrent.TimeUnit;
 public class EventTrackingExternalWindowTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventTrackingExternalWindowTest.class);
-    public static final String STATEMENT = "select rstream s.* from SentEvent.ext:time_order(timestamp, var_win sec) s " +
-            " full outer join ReceivedEvent.ext:time_order(timestamp, var_win sec) r on s.transactionId = r.transactionId " +
+    public static final String STATEMENT_1 = "select rstream s.* from SentEvent.win:ext_timed(timestamp, var_win sec) s " +
+            " full outer join ReceivedEvent.win:ext_timed(timestamp, var_win sec) r on s.transactionId = r.transactionId " +
             " where r.transactionId  is null ";
 
+    public static final String STATEMENT_2 = "select rstream s.* from SentEvent.ext:time_order(timestamp, var_win sec) s " +
+            " left outer join ReceivedEvent.ext:time_order(timestamp, var_win sec) r on s.transactionId = r.transactionId " +
+            " where r.transactionId  is null ";
+
+    public static final String STATEMENT = "select irstream s.* from SentEvent.ext:time_order(timestamp, var_win sec) s " +
+            " left outer join ReceivedEvent.ext:time_order(timestamp, var_win sec) r on s.transactionId = r.transactionId " +
+            " where r.transactionId  is null ";
+
+    //window with sent
+    //window with received
+    //insert into stream of matched
+    //delete from sent and received when in matched
+    //
     private EsperTemplate esperTemplate;
 
     private CountingStatementListener expiredListener;
@@ -39,12 +53,29 @@ public class EventTrackingExternalWindowTest {
 
         Map<String, Object> variables = new HashMap<String, Object>();
         expiredListener = new CountingStatementListener("expiredListener");
-        UpdateListener matchedListener  = new CountingStatementListener("matchedListener");;
+        StatementAwareUpdateListener matchedListener  = new CountingStatementListener("matchedListener");;
         variables.put("var_win", delayInSecs);
         esperTemplate.setVariables(variables);
-        esperTemplate.addStatementTemplate(statement, expiredListener);
+        esperTemplate.addStatements(
+                "create window SentWindow.ext:time_order(timestamp, var_win sec) as SentEvent",
+                "create window ReceivedWindow.ext:time_order(timestamp, var_win sec) as ReceivedEvent",
+                "insert into SentWindow select * from SentEvent",
+                "insert into ReceivedWindow select * from ReceivedEvent",
+                "insert into MatchedEvent select s.* from SentWindow s, ReceivedWindow r where s.transactionId = r.transactionId ",
+                "on MatchedEvent m delete from SentWindow s where s.transactionId = m.transactionId ",
+                "on MatchedEvent m delete from ReceivedWindow r where r.transactionId = m.transactionId ",
+                "insert rstream into SentRemove select * from SentWindow s"
+
+        );
+
+        esperTemplate.addStatementTemplate("select s.* from SentRemove.std:lastevent() s full outer join MatchedEvent.std:lastevent() m on s.transactionId = m.transactionId where m.transactionId is null", expiredListener);
 
         esperTemplate.startEngine();
+    }
+
+    @After
+    public void after() {
+        esperTemplate.stopEngine();
     }
 
     @Test
@@ -99,11 +130,11 @@ public class EventTrackingExternalWindowTest {
 
     @Test
     public void testWithVolume() throws Exception {
-        delayInSecs = 30;
+        delayInSecs = 20;
         before(STATEMENT);
         String uuid = UUID.randomUUID().toString();
         long start = System.currentTimeMillis();
-        int max = 10000000;
+        int max = 300000;
         for (int i=0; i < max; i++) {
             esperTemplate.sendEvent(new SentEvent(uuid + "event " + i, System.currentTimeMillis()));
             esperTemplate.sendEvent(new ReceivedEvent(uuid + "event " + i, System.currentTimeMillis()));
@@ -115,5 +146,11 @@ public class EventTrackingExternalWindowTest {
         }
         long end = System.currentTimeMillis();
         LOGGER.info("Time taken {} secs",  (end-start)/1000);
+
+        while (true) {
+            TimeUnit.SECONDS.sleep(5);
+            Runtime.getRuntime().gc();
+            LOGGER.info(" {} ", MemoryUtils.stats());
+        }
     }
 }

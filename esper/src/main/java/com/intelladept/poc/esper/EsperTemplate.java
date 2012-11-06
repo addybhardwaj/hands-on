@@ -74,7 +74,12 @@ public class EsperTemplate extends Thread {
         this.statementTemplates.addAll(statementTemplates);
     }
 
-    public EsperTemplate addStatementTemplate(String statement, UpdateListener updateListener) {
+//    public EsperTemplate addStatementTemplate(String statement, UpdateListener updateListener) {
+//        this.statementTemplates.add(new StatementTemplate(statement, updateListener));
+//        return this;
+//    }
+
+    public EsperTemplate addStatementTemplate(String statement, StatementAwareUpdateListener updateListener) {
         this.statementTemplates.add(new StatementTemplate(statement, updateListener));
         return this;
     }
