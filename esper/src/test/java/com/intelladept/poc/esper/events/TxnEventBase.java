@@ -24,6 +24,7 @@ public class TxnEventBase {
     public String toString() {
         return "TxnEventBase{" +
                 "transactionId='" + transactionId + '\'' +
+                ", timestamp=" + timestamp +
                 '}';
     }
 }

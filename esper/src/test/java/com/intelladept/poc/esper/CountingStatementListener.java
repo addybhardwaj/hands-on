@@ -2,6 +2,7 @@ package com.intelladept.poc.esper;
 
 import com.espertech.esper.client.EventBean;
 import com.espertech.esper.client.UpdateListener;
+import org.apache.commons.lang.builder.ToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,7 @@ public class CountingStatementListener implements UpdateListener {
             for(EventBean eventBean : newEvents) {
                 count ++;
                 LOGGER.info("{} >> " + desc + " {}", name, eventBean);
-//                LOGGER.info(desc + " {}", ToStringBuilder.reflectionToString(eventBean));
+                LOGGER.info(desc + " {}", ToStringBuilder.reflectionToString(eventBean));
             }
         }
     }

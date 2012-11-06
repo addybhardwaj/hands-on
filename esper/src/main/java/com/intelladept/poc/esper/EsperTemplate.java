@@ -35,6 +35,7 @@ public class EsperTemplate extends Thread {
     public void run()  {
 
         Configuration config = new Configuration();
+        config.setMetricsReportingEnabled();
         if (packageName != null) {
             config.addEventTypeAutoName(packageName);
         }
