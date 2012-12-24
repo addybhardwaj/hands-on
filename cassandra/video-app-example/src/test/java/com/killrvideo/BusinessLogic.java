@@ -1,34 +1,49 @@
 package com.killrvideo;
 
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.UUID;
-
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.serializers.UUIDSerializer;
 import me.prettyprint.hector.api.Keyspace;
 import me.prettyprint.hector.api.beans.ColumnSlice;
+import me.prettyprint.hector.api.beans.CounterSlice;
+import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.exceptions.HectorException;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
+import me.prettyprint.hector.api.query.ColumnQuery;
+import me.prettyprint.hector.api.query.QueryResult;
+import me.prettyprint.hector.api.query.SliceCounterQuery;
 import me.prettyprint.hector.api.query.SliceQuery;
+
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class BusinessLogic {
 
 	private static StringSerializer stringSerializer = StringSerializer.get();
 	private static UUIDSerializer uuidSerializer = UUIDSerializer.get();
+    private static final String CF_USERS = "users";
 
-	public void setUser(User user, Keyspace keyspace) {
+    public static final String FIRSTNAME = "firstname";
+    public static final String CF_COMMENTS = "comments";
+    public static final String CF_VIDEO_RATING = "video_rating";
+    public static final String RATING_COUNT = "rating_count";
+    public static final String RATING_TOTAL = "rating_total";
+    public static final String CF_VIDEO_EVENT = "video_event";
+
+    public void setUser(User user, Keyspace keyspace) {
 
 		Mutator<String> mutator = HFactory.createMutator(keyspace, stringSerializer);
 
 		try {
 
-			mutator.addInsertion(user.getUsername(), "users",
-					HFactory.createStringColumn("firstname", user.getFirstname()));
-			mutator.addInsertion(user.getUsername(), "users",
+			mutator.addInsertion(user.getUsername(), CF_USERS,
+					HFactory.createStringColumn(FIRSTNAME, user.getFirstname()));
+			mutator.addInsertion(user.getUsername(), CF_USERS,
 					HFactory.createStringColumn("lastname", user.getLastname()));
-			mutator.addInsertion(user.getUsername(), "users",
+			mutator.addInsertion(user.getUsername(), CF_USERS,
 					HFactory.createStringColumn("password", user.getPassword()));
 
 			mutator.execute();
@@ -37,15 +52,17 @@ public class BusinessLogic {
 		}
 	}
 
-	public User getUser(String username) {
+	public User getUser(String username, Keyspace keyspace) {
+        ColumnQuery<String, String, String> columnQuery = HFactory.createColumnQuery(keyspace, stringSerializer, stringSerializer, stringSerializer);
+        columnQuery.setColumnFamily(CF_USERS);
+        columnQuery.setKey(username);
+        columnQuery.setName(FIRSTNAME);
+        QueryResult<HColumn<String, String>> result = columnQuery.execute();
 
-		// TODO Implement this method
-		/*
-		 * A simple method to get a single user based on the username key. After
-		 * you get the data from Cassandra, populate and return a User object.
-		 */
-
-		return null;
+        User user = new User();
+        user.setFirstname(result.get().getValue());
+		// TODO use slice query or something better?
+		return user;
 	}
 
 	public void setVideo(Video video, Keyspace keyspace) {
@@ -137,7 +154,7 @@ public class BusinessLogic {
 
 		try {
 			String columnName = video.getUsername() + ":" + timestamp;
-			mutator.addInsertion(video.getVideoId(), "comments", HFactory.createStringColumn(columnName, comment));
+			mutator.addInsertion(video.getVideoId(), CF_COMMENTS, HFactory.createStringColumn(columnName, comment));
 
 			mutator.execute();
 		} catch (HectorException he) {
@@ -145,14 +162,24 @@ public class BusinessLogic {
 		}
 	}
 
-	public ArrayList<String> getComments(UUID videoId) {
+	public ArrayList<String> getComments(UUID videoId, Keyspace keyspace) {
+		SliceQuery<UUID, String, String> sliceQuery = HFactory.createSliceQuery(keyspace, uuidSerializer, stringSerializer, stringSerializer);
+        sliceQuery.setColumnFamily(CF_COMMENTS);
+        sliceQuery.setKey(videoId);
+        sliceQuery.setRange(null , null, false, 200);
+        QueryResult<ColumnSlice<String, String>> result = sliceQuery.execute();
+
+        ArrayList<String> comments = new ArrayList<String>();
+        for(HColumn<String, String> column : result.get().getColumns()) {
+            comments.add(column.getValue());
+        }
 		// TODO Implement
 		/*
 		 * Each video can have a unbounded list of comments associated with it.
 		 * This method should return all comments associated with one video.
 		 */
 
-		return null;
+		return comments;
 	}
 
 	public ArrayList<String> getCommentsOnTimeSlice(Timestamp startTimestamp, Timestamp stopTimestamp, UUID videoId) {
@@ -170,8 +197,8 @@ public class BusinessLogic {
 
 		try {
 
-			mutator.addCounter(videoId, "video_rating", HFactory.createCounterColumn("rating_count", 1));
-			mutator.addCounter(videoId, "video_rating", HFactory.createCounterColumn("rating_total", ratingNumber));
+			mutator.addCounter(videoId, CF_VIDEO_RATING, HFactory.createCounterColumn(RATING_COUNT, 1));
+			mutator.addCounter(videoId, CF_VIDEO_RATING, HFactory.createCounterColumn(RATING_TOTAL, ratingNumber));
 
 			mutator.execute();
 		} catch (HectorException he) {
@@ -179,7 +206,7 @@ public class BusinessLogic {
 		}
 	}
 
-	public float getRating(UUID videoId) {
+	public float getRating(UUID videoId, Keyspace keyspace) {
 		// TODO Implement
 		/*
 		 * Each video has two things. a rating_count and rating_total. The
@@ -187,7 +214,14 @@ public class BusinessLogic {
 		 * count. Build the logic to get both numbers and return the average.
 		 */
 
-		return 0;
+        SliceCounterQuery<UUID, String> counterQuery = HFactory.createCounterSliceQuery(keyspace, uuidSerializer, stringSerializer);
+        counterQuery.setColumnFamily(CF_VIDEO_RATING);
+        counterQuery.setKey(videoId);
+        counterQuery.setColumnNames(RATING_COUNT, RATING_TOTAL);
+        QueryResult<CounterSlice<String>> result = counterQuery.execute();
+        CounterSlice<String> stringCounterSlice = result.get();
+        return stringCounterSlice.getColumnByName(RATING_TOTAL).getValue()/ stringCounterSlice.getColumnByName(RATING_COUNT).getValue();
+
 	}
 
 	public void setVideoStartEvent(UUID videoId, String username, Timestamp timestamp, Keyspace keyspace) {
@@ -196,7 +230,7 @@ public class BusinessLogic {
 
 		try {
 
-			mutator.addInsertion(username + ":" + videoId, "video_event",
+			mutator.addInsertion(username + ":" + videoId, CF_VIDEO_EVENT,
 					HFactory.createStringColumn("start:" + timestamp, ""));
 
 			mutator.execute();
@@ -211,8 +245,8 @@ public class BusinessLogic {
 		Mutator<String> mutator = HFactory.createMutator(keyspace, stringSerializer);
 
 		try {
-
-			mutator.addInsertion(username + ":" + videoId, "video_event",
+            System.out.println("Adding stop: " + stopEvent);
+			mutator.addInsertion(username + ":" + videoId, CF_VIDEO_EVENT,
 					HFactory.createStringColumn("stop:" + stopEvent, videoTimestamp.toString()));
 
 			mutator.execute();
@@ -221,8 +255,22 @@ public class BusinessLogic {
 		}
 	}
 
-	public Timestamp getVideoLastStopEvent(UUID videoId, String username) {
-		// TODO Implement
+	public Timestamp getVideoLastStopEvent(UUID videoId, String username, Keyspace keyspace) {
+
+        SliceQuery<String, String, String> sliceQuery = HFactory.createSliceQuery(keyspace, stringSerializer, stringSerializer, stringSerializer);
+        sliceQuery.setColumnFamily(CF_VIDEO_EVENT);
+        sliceQuery.setKey(username + ":" + videoId);
+        try{
+            TimeUnit.SECONDS.sleep(2);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        String stopWithCurrentTimestamp = "stop:" + new Timestamp(new Date().getTime());
+        sliceQuery.setRange(stopWithCurrentTimestamp, null, true, 2);
+        QueryResult<ColumnSlice<String, String>> result = sliceQuery.execute();
+
+        // TODO Implement
 		/*
 		 * This method will return the video timestamp of the last stop event
 		 * for a given video identified by videoid. As a hint, you will be using

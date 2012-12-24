@@ -1,12 +1,12 @@
 package com.killrvideo;
 
 
-import java.sql.Timestamp;
-import java.util.UUID;
-
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
 import me.prettyprint.hector.api.factory.HFactory;
+
+import java.sql.Timestamp;
+import java.util.UUID;
 
 public class Runner {
 
@@ -30,12 +30,14 @@ public class Runner {
 		Keyspace keyspace = HFactory.createKeyspace(KEYSPACE, myCluster);
 
 		// Create a user and video for testing
-		User user = new User("pmcfadin", "secretPassword123", "Patrick", "McFadin");
-		Video video = new Video(videoId, "Funny Cat Video", "pmcfadin", "A video about a cat. It's pretty funny.", new String[]{"Cats","Funny","lol"});
+        String username = "pmcfadin";
+        User user = new User(username, "secretPassword123", "Patrick", "McFadin");
+		Video video = new Video(videoId, "Funny Cat Video", username, "A video about a cat. It's pretty funny.", new String[]{"Cats","Funny","lol"});
 		
 		BusinessLogic bl = new BusinessLogic();
-		
-		System.out.println("Setting a user");
+
+        User userRead = bl.getUser(username, keyspace);
+		System.out.println("Setting a user" + userRead);
 		bl.setUser(user, keyspace);
 
 		System.out.println("Setting a video");
@@ -45,22 +47,28 @@ public class Runner {
 		bl.setVideoWithTagIndex(video, keyspace);
 
 		System.out.println("Getting video by UUID");
-		bl.getVideoByUUID(videoId, keyspace);
-		
-		System.out.println("Setting a comment for a video");
+		Video videoReturned = bl.getVideoByUUID(videoId, keyspace);
+        System.out.println("Getting video by UUID: " + videoReturned);
+
+		System.out.println("Setting a comment for a video : " + bl.getComments(video.getVideoId(), keyspace));
 		bl.setComment(video, "Kinda meh. I like southpark better", new Timestamp(new java.util.Date().getTime()), keyspace);
+        System.out.println("Setting a comment for a video : " + bl.getComments(video.getVideoId(), keyspace));
 
 		System.out.println("Rating a video");
 		bl.setRating(videoId, 4, keyspace);
+        System.out.println("Rating a video : " + bl.getRating(videoId, keyspace));
+
 
 		System.out.println("Setting a start event");
 		Timestamp startEvent = new Timestamp(new java.util.Date().getTime());
-		bl.setVideoStartEvent(videoId, "pmcfadin", startEvent, keyspace);
+		bl.setVideoStartEvent(videoId, username, startEvent, keyspace);
 
 		System.out.println("Setting a stop event");
 		Timestamp stopEvent = new Timestamp(new java.util.Date().getTime());
 		Timestamp videoTimestamp = new Timestamp(new java.util.Date().getTime());
-		bl.setVideoStopEvent(videoId, "pmcfadin", stopEvent, videoTimestamp, keyspace);
+		bl.setVideoStopEvent(videoId, username, stopEvent, videoTimestamp, keyspace);
+
+        bl.getVideoLastStopEvent(videoId, username, keyspace);
 	}
 
 
