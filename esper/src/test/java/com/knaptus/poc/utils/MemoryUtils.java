@@ -1,4 +1,4 @@
-package com.intelladept.poc.utils;
+package com.knaptus.poc.utils;
 
 /**
  * TODO

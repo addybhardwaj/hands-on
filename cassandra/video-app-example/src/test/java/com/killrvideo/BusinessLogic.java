@@ -32,6 +32,7 @@ public class BusinessLogic {
     public static final String RATING_COUNT = "rating_count";
     public static final String RATING_TOTAL = "rating_total";
     public static final String CF_VIDEO_EVENT = "video_event";
+    public static final String CF_VIDEOS = "videos";
 
     public void setUser(User user, Keyspace keyspace) {
 
@@ -70,13 +71,13 @@ public class BusinessLogic {
 		Mutator<UUID> mutator = HFactory.createMutator(keyspace, UUIDSerializer.get());
 
 		try {
-			mutator.addInsertion(video.getVideoId(), "videos",
+			mutator.addInsertion(video.getVideoId(), CF_VIDEOS,
 					HFactory.createStringColumn("videoname", video.getVideoName()));
-			mutator.addInsertion(video.getVideoId(), "videos",
+			mutator.addInsertion(video.getVideoId(), CF_VIDEOS,
 					HFactory.createStringColumn("username", video.getUsername()));
-			mutator.addInsertion(video.getVideoId(), "videos",
+			mutator.addInsertion(video.getVideoId(), CF_VIDEOS,
 					HFactory.createStringColumn("description", video.getDescription()));
-			mutator.addInsertion(video.getVideoId(), "videos",
+			mutator.addInsertion(video.getVideoId(), CF_VIDEOS,
 					HFactory.createStringColumn("tags", video.getDelimitedTags()));
 
 			mutator.execute();
@@ -92,7 +93,7 @@ public class BusinessLogic {
 		// Create a slice query. We'll be getting specific column names
 		SliceQuery<UUID, String, String> sliceQuery = HFactory.createSliceQuery(keyspace, uuidSerializer,
 				stringSerializer, stringSerializer);
-		sliceQuery.setColumnFamily("videos");
+		sliceQuery.setColumnFamily(CF_VIDEOS);
 		sliceQuery.setKey(videoId);
 
 		sliceQuery.setColumnNames("videoname", "username", "description", "tags");
@@ -109,27 +110,22 @@ public class BusinessLogic {
 		return video;
 	}
 
+    /**
+     * Saves only video's tag index.
+     *
+     * @param video
+     * @param keyspace
+     */
 	public void setVideoWithTagIndex(Video video, Keyspace keyspace) {
 
-		Mutator<UUID> UUIDmutator = HFactory.createMutator(keyspace, UUIDSerializer.get());
 		Mutator<String> mutator = HFactory.createMutator(keyspace, stringSerializer);
 
 		try {
-
-			UUIDmutator.addInsertion(video.getVideoId(), "videos",
-					HFactory.createStringColumn("videoname", video.getVideoName()));
-			UUIDmutator.addInsertion(video.getVideoId(), "videos",
-					HFactory.createStringColumn("username", video.getUsername()));
-			UUIDmutator.addInsertion(video.getVideoId(), "videos",
-					HFactory.createStringColumn("description", video.getDescription()));
-			UUIDmutator.addInsertion(video.getVideoId(), "videos",
-					HFactory.createStringColumn("tags", video.getDelimitedTags()));
 
 			for (String tag : video.getTags()) {
 				mutator.addInsertion(tag, "tag_index", HFactory.createStringColumn(video.getVideoId().toString(), ""));
 			}
 
-			UUIDmutator.execute();
 			mutator.execute();
 
 		} catch (HectorException he) {
@@ -139,12 +135,17 @@ public class BusinessLogic {
 	}
 
 	public void setVideoWithUserIndex(Video video, Keyspace keyspace) {
-		// TODO Implement this method
-		/*
-		 * This mthod is similar to the setVideo but with a subtle twist. When
-		 * you insert a new video, you will need to insert into the
-		 * username_video_index at the same time for username to video lookups.
-		 */
+
+        Mutator<String> mutator = HFactory.createMutator(keyspace, stringSerializer);
+
+        try {
+            mutator.addInsertion(video.getUsername(), "username_video_index",
+                    HFactory.createStringColumn(video.getVideoId().toString(), ""));
+
+            mutator.execute();
+        } catch (HectorException e) {
+            e.printStackTrace();
+        }
 
 	}
 

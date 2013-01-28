@@ -1,4 +1,4 @@
-package com.intelladept.poc.disruptor;
+package com.knaptus.poc.disruptor;
 
 import com.lmax.disruptor.*;
 import org.junit.Test;

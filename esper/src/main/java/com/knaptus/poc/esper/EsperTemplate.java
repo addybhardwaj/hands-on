@@ -1,4 +1,4 @@
-package com.intelladept.poc.esper;
+package com.knaptus.poc.esper;
 
 import com.espertech.esper.client.*;
 
@@ -26,7 +26,7 @@ public class EsperTemplate extends Thread {
     private EPServiceProvider epService;
 
     public void startEngine() throws InterruptedException {
-        this.start();
+        this.run();
         while(started.get() == false) {
             TimeUnit.MILLISECONDS.sleep(10);
         }

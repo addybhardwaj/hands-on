@@ -1,4 +1,4 @@
-package com.intelladept.poc.esper.events;
+package com.knaptus.poc.esper.events;
 
 /**
  * @author Aditya Bhardwaj

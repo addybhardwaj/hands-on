@@ -1,4 +1,4 @@
-package com.intelladept.poc.esper;
+package com.knaptus.poc.esper;
 
 import com.espertech.esper.client.*;
 import org.apache.commons.lang.builder.ToStringBuilder;

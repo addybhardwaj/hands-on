@@ -1,9 +1,9 @@
-package com.intelladept.poc.esper;
+package com.knaptus.poc.esper;
 
 import com.espertech.esper.client.StatementAwareUpdateListener;
-import com.intelladept.poc.esper.events.ReceivedEvent;
-import com.intelladept.poc.esper.events.SentEvent;
-import com.intelladept.poc.utils.MemoryUtils;
+import com.knaptus.poc.esper.events.ReceivedEvent;
+import com.knaptus.poc.esper.events.SentEvent;
+import com.knaptus.poc.utils.MemoryUtils;
 import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Test;
@@ -49,7 +49,7 @@ public class EventTrackingExternalWindowTest {
 
     public void before(String statement) throws NamingException, InterruptedException {
         esperTemplate = new EsperTemplate();
-        esperTemplate.setPackageName("com.intelladept.poc.esper.events");
+        esperTemplate.setPackageName("com.knaptus.poc.esper.events");
 
         Map<String, Object> variables = new HashMap<String, Object>();
         expiredListener = new CountingStatementListener("expiredListener");
@@ -134,23 +134,18 @@ public class EventTrackingExternalWindowTest {
         before(STATEMENT);
         String uuid = UUID.randomUUID().toString();
         long start = System.currentTimeMillis();
-        int max = 300000;
+        int max = 1000000;
         for (int i=0; i < max; i++) {
             esperTemplate.sendEvent(new SentEvent(uuid + "event " + i, System.currentTimeMillis()));
             esperTemplate.sendEvent(new ReceivedEvent(uuid + "event " + i, System.currentTimeMillis()));
             int batch = 10000;
             if (i% batch == 0) {
-//                if (i%(batch*20)==0) TimeUnit.SECONDS.sleep(5);
                 LOGGER.info(" {} : Count {}", MemoryUtils.stats(), i);
             }
         }
         long end = System.currentTimeMillis();
         LOGGER.info("Time taken {} secs",  (end-start)/1000);
 
-        while (true) {
-            TimeUnit.SECONDS.sleep(5);
-            Runtime.getRuntime().gc();
-            LOGGER.info(" {} ", MemoryUtils.stats());
-        }
+
     }
 }

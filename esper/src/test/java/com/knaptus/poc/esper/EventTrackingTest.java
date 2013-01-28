@@ -1,8 +1,8 @@
-package com.intelladept.poc.esper;
+package com.knaptus.poc.esper;
 
-import com.intelladept.poc.esper.events.ReceivedEvent;
-import com.intelladept.poc.esper.events.SentEvent;
-import com.intelladept.poc.utils.MemoryUtils;
+import com.knaptus.poc.esper.events.ReceivedEvent;
+import com.knaptus.poc.esper.events.SentEvent;
+import com.knaptus.poc.utils.MemoryUtils;
 import junit.framework.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -35,7 +35,7 @@ public class EventTrackingTest {
 
     public void before(String statement) throws NamingException, InterruptedException {
         esperTemplate = new EsperTemplate();
-        esperTemplate.setPackageName("com.intelladept.poc.esper.events");
+        esperTemplate.setPackageName("com.knaptus.poc.esper.events");
 
         Map<String, Object> variables = new HashMap<String, Object>();
         expiredListener = new CountingStatementListener("expiredListener");
