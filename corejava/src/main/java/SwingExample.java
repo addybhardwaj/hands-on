@@ -16,6 +16,7 @@ public class SwingExample extends JFrame {
     public void init() {
 
         JPanel panel = new JPanel();
+        //add panel to frame
         getContentPane().add(panel);
 
         panel.setLayout(null);
