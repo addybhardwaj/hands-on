@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<solver>
+    <!--<environmentMode>FAST_ASSERT</environmentMode>-->
+
+    <!-- Domain model configuration -->
+    <solutionClass>org.optaplanner.examples.aps.domain.ApsMatcher</solutionClass>
+    <planningEntityClass>org.optaplanner.examples.aps.domain.MatchedTransaction</planningEntityClass>
+
+    <!-- Score configuration -->
+    <scoreDirectorFactory>
+        <scoreDefinitionType>SIMPLE_LONG</scoreDefinitionType>
+        <simpleScoreCalculatorClass>org.optaplanner.examples.aps.solver.score.ApsSimpleScoreCalculator</simpleScoreCalculatorClass>
+        <!--<simpleScoreCalculatorClass>org.optaplanner.examples.cloudbalancing.solver.score.CloudBalancingMapBasedSimpleScoreCalculator</simpleScoreCalculatorClass>-->
+        <!--<incrementalScoreCalculatorClass>org.optaplanner.examples.cloudbalancing.solver.score.CloudBalancingIncrementalScoreCalculator</incrementalScoreCalculatorClass>-->
+        <!--<scoreDrl>/org/optaplanner/examples/cloudbalancing/solver/cloudBalancingScoreRules.drl</scoreDrl>-->
+        <!--<assertionScoreDirectorFactory>-->
+        <!--<incrementalScoreCalculatorClass>org.optaplanner.examples.cloudbalancing.solver.score.CloudBalancingIncrementalScoreCalculator</incrementalScoreCalculatorClass>-->
+        <!--</assertionScoreDirectorFactory>-->
+    </scoreDirectorFactory>
+
+    <!-- Optimization algorithms configuration -->
+    <termination>
+        <scoreAttained>0</scoreAttained>
+        <!--<maximumSecondsSpend>5</maximumSecondsSpend>-->
+    </termination>
+    <constructionHeuristic>
+        <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
+        <forager>
+            <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
+        </forager>
+    </constructionHeuristic>
+    <localSearch>
+        <acceptor>
+            <solutionTabuSize>10000</solutionTabuSize>
+            <entityTabuRatio>0.10</entityTabuRatio>
+        </acceptor>
+        <forager>
+            <acceptedCountLimit>2</acceptedCountLimit>
+        </forager>
+        <termination>
+            <maximumUnimprovedStepCount>100</maximumUnimprovedStepCount>
+        </termination>
+    </localSearch>
+</solver>
