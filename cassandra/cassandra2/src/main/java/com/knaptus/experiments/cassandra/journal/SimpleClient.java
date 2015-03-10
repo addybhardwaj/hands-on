@@ -18,6 +18,7 @@ public class SimpleClient {
                 .addContactPoint(node)
                 .withCompression(ProtocolOptions.Compression.LZ4)
                 .withReconnectionPolicy(new ExponentialReconnectionPolicy(100, 10000))
+//                        .withRetryPolicy(new LoggingRetryPolicy(RetryPolicies.exponentialBackoffRetry()))
 //                .withPoolingOptions(new PoolingOptions())
                 .build();
         Metadata metadata = cluster.getMetadata();

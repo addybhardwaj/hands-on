@@ -6,7 +6,6 @@ import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.utils.UUIDs;
 import com.google.common.base.Stopwatch;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,28 +40,28 @@ public class SimpleJournal {
         dataCreator = new DataCreator();
     }
 
-    private static String getShard() {
-        return LocalDateTime.now().toString("yyyyMMddHHmm");
+    private static String getShard(UUID uuid) {
+        return new LocalDateTime(UUIDs.unixTimestamp(uuid)).toString("yyyyMMdd");
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        DEFAULT = "default" + "1";
-        LOGGER.info("Sample at [{}] was [{}]", getShard());
+        DEFAULT = "default" + 1;
+        LOGGER.info("Sample at [{}] was [{}]", getShard(UUIDs.timeBased()));
         SimpleClient client = new SimpleClient();
         client.connect("127.0.0.1");
 
         SimpleJournal journal = new SimpleJournal(client);
 //        journal.dropTable();
-//        journal.createTable();
+        journal.createTable();
 
-//        journal.generateLoad();
-        Writer writer = journal.createFile();
+        journal.generateLoad();
+//        Writer writer = journal.createFile();
 
         try {
-            journal.queryAll(writer);
+//            journal.queryAll(writer);
         } finally {
-            writer.flush();
-            writer.close();
+//            writer.flush();
+//            writer.close();
         }
         client.close();
     }
@@ -87,7 +86,7 @@ public class SimpleJournal {
             Iterator<Row> data = client.execute(statement, shard).iterator();
             while (data.hasNext()) {
                 Row row = data.next();
-                IOUtils.writeLines(Arrays.asList(row.toString()), "\n", writer);
+//                IOUtils.writeLines(Arrays.asList(row.toString()), "\n", writer);
                 count ++;
                 totalCount ++;
                 if (count % 1000 == 0) {
@@ -99,13 +98,33 @@ public class SimpleJournal {
         LOGGER.info("All shards have [{}] messages", totalCount);
     }
 
+    private void getInFlightMessage() {
+        //1. find the last outbound
+        //1.1 find most recent partition
+        //select distinct date, name from journals.default1 where token(name, date) >= token('txn-out', '20140911') and token(name, date) < token('txn-out', '20141010');
+        //1.2 find last committed state
+        //select * from journals.default1 where name = 'txn-out' and date = '20140917' and id < now() order by id desc limit 1;
+
+        //2. read inbounds using last outbound id (using paging)
+        //select * from journals.default1 where name = 'txn-in' and date = '20140917' and id > a2dc2e40-3df8-11e4-805e-e33b21546550 ;
+    }
+
+    private void getFeedOfStartOrFinish() {
+        //1. find the last id for the feed
+        //select * from journals.default1 where name = 'txn-feedname' and date = '20140915' and id < maxTimeuuid('current time') order by id desc limit 1 ALLOW FILTERING;
+
+        //2. poll for results every 100ms
+
+        //3. process in batches and persist batches
+    }
+
     public void generateLoad() throws InterruptedException {
         LOGGER.info("Sample at [{}] was [{}]", DEFAULT, dataCreator.createPayload());
-        int totalLoad = 100000;
+        int totalLoad = 10000;
         int threads = 20;
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         LOGGER.info("Starting journaling");
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
+        Stopwatch stopwatch = new Stopwatch(); //.createUnstarted();
         stopwatch.start();
         for (int i=0; i < threads; i++) {
             executorService.execute(new DataJournaller(dataCreator, client, totalLoad / threads));
@@ -160,24 +179,26 @@ public class SimpleJournal {
 
             String payload = dataCreator.createPayload();
             UUID id = UUIDs.timeBased();
+//            long timestamp = UUIDs.unixTimestamp(id);
+//            new LocalDateTime(timestamp).toString();
             Insert insert = QueryBuilder.insertInto("journals", DEFAULT)
-                    .value("name", "txn")
-                    .value("date", getShard())
+                    .value("name", "txn-in")
+                    .value("date", getShard(id))
                     .value("id", id)
-                    .value("type", "inbound")
+//                    .value("type", "inbound")
                     .value("payload", payload)
                     ;
             client.execute(insert);
 
             insert = QueryBuilder.insertInto("journals", DEFAULT)
-                    .value("name", "txn")
-                    .value("date", getShard())
+                    .value("name", "txn-out")
+                    .value("date", getShard(id))
                     .value("id", id)
-                    .value("type", "outbound")
+//                    .value("type", "outbound")
                     .value("payload", payload)
             ;
 
-            client.execute(insert);
+//            client.execute(insert);
         }
     }
 
@@ -192,12 +213,12 @@ public class SimpleJournal {
                 " name text, " +
                 " date text, " +
                 " id uuid, " +
-                " type text, " +
+//                " type text, " +
 //                " status int, " +
-                " payload text, " +
+                " payload blob, " +
 //                " logs list<text>, " +
 //                " headers map<text,text>, " +
-                " PRIMARY KEY ((name, date), id, type) " +
+                " PRIMARY KEY ((name, date), id) " +
                 ") " +
                 "WITH compression = { 'sstable_compression' : 'LZ4Compressor' };");
     }
@@ -205,7 +226,8 @@ public class SimpleJournal {
 
 /**
  select * from journals.default where id = b5aa55e0-1771-11e4-8895-0728b4274ba6 ALLOW FILTERING;
- select * from journals.default where id > maxTimeuuid('2013-01-01') ALLOW FILTERING;
+ select * from journals.default1 where id < maxTimeuuid('2014-09-16') ALLOW FILTERING; /// can cause Out of memory .. too inefficient
  select * from journals.default where date = '2014-07-30' and name ='txn';
  select * from journals.default where id = b5aa55e0-1771-11e4-8895-0728b4274ba6 and type='inbound' ALLOW FILTERING;
+ select * from journals.default1 where name = 'txn' and date = '201409152356' and id < maxTimeuuid('2014-09-16') limit 1 ALLOW FILTERING;
 **/
